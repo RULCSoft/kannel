@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -87,10 +87,8 @@ int main(int argc, char **argv)
     
     cf_index = get_and_set_debugs(argc, argv, check_args);
     
-    if (argv[cf_index] == NULL) {
-        debug("",0,"Usage: %s <store-file>", argv[0]);
-        goto error;
-    }
+    if (argv[cf_index] == NULL)
+        panic(0, "Usage: %s <store-file>", argv[0]);
 
     type = octstr_create("file");
     
@@ -103,7 +101,6 @@ int main(int argc, char **argv)
     info(0, "Store file contains %d msg entries", counter);
     info(0, "Shutting down.");
     
-error:
     gwlib_shutdown();
 
     return 1;

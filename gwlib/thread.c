@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -65,7 +65,7 @@
 
 
 #ifdef MUTEX_STATS
-Mutex *mutex_make_measured(Mutex *mutex, unsigned char *filename, int lineno)
+Mutex *mutex_create_measured(Mutex *mutex, char *filename, int lineno)
 {
     mutex->filename = filename;
     mutex->lineno = lineno;

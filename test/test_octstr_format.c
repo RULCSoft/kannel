@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -63,7 +63,7 @@
 int main(void) 
 {
     Octstr *os, *os2, *os3, *os4, *os5;
-    unsigned long long n = 78234782386423784267234;
+    unsigned long long n = 18446744073709551615ull;
 
     gwlib_init();
 

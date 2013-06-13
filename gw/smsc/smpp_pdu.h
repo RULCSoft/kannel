@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -95,7 +95,7 @@ struct SMPP_PDU {
         #define TLV_INTEGER(name, octets) unsigned long name;
         #define TLV_NULTERMINATED(name, max_len) Octstr *name;
         #define TLV_OCTETS(name, min_len, max_len) Octstr *name;
-        #define OPTIONAL_END
+        #define OPTIONAL_END Dict *tlv;
         #define INTEGER(name, octets) unsigned long name;
         #define NULTERMINATED(name, max_octets) Octstr *name;
         #define OCTETS(name, field_giving_octets) Octstr *name;
@@ -224,11 +224,16 @@ enum SMPP_ERROR_MESSAGES {
     SMPP_ESME_RINVBCASTCHANIND = 0x00000112,
 };
 
+/* initialize SMPP PDU */
+int smpp_pdu_init(Cfg *cfg);
+/* shutdown SMPP PDU */
+int smpp_pdu_shutdown(void);
+
 SMPP_PDU *smpp_pdu_create(unsigned long type, unsigned long seq_no);
 void smpp_pdu_destroy(SMPP_PDU *pdu);
 int smpp_pdu_is_valid(SMPP_PDU *pdu); /* XXX */
-Octstr *smpp_pdu_pack(SMPP_PDU *pdu);
-SMPP_PDU *smpp_pdu_unpack(Octstr *data_without_len);
+Octstr *smpp_pdu_pack(Octstr *smsc_id, SMPP_PDU *pdu);
+SMPP_PDU *smpp_pdu_unpack(Octstr *smsc_id, Octstr *data_without_len);
 void smpp_pdu_dump(SMPP_PDU *pdu);
 
 long smpp_pdu_read_len(Connection *conn);

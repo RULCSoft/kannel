@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -197,6 +197,21 @@ int roundup_div(int a, int b);
  * (not guarenteed to be unique, but it's extremly unlikely for it not to be)
  */
 unsigned long long gw_generate_id(void);
+
+
+/*
+ * Return an octet string with information about Kannel version,
+ * operating system, and libxml version. The caller must take care to
+ * destroy the string when done.
+ */
+Octstr *version_report_string(const char *boxname);
+
+
+/*
+ * Output the information returned by version_report_string to the log
+ * files.
+ */
+void report_versions(const char *boxname);
 
 
 #endif

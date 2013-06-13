@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -159,7 +159,9 @@ struct smscconn {
     /* connection specific counters (created in smscconn.c, updated
      *  by callback functions in bb_smscconn.c, NOT used by specific driver) */
     Counter *received;
+    Counter *received_dlr;
     Counter *sent;
+    Counter *sent_dlr;
     Counter *failed;
 
     /* SMSCConn variables set in smscconn.c */
@@ -168,6 +170,7 @@ struct smscconn {
     Octstr *name;		/* Descriptive name filled from connection info */
     Octstr *id;			/* Abstract name specified in configuration and
 				   used for logging and routing */
+    Octstr *admin_id;
     List *allowed_smsc_id;
     List *denied_smsc_id;
     List *preferred_smsc_id;
@@ -282,6 +285,9 @@ int smsc_smasi_create(SMSCConn *conn, CfgGroup *cfg);
 
 /* Responsible file: smsc/smsc_oisd.c */
 int smsc_oisd_create(SMSCConn *conn, CfgGroup *cfg);
+
+/* Responsible file: smsc/smsc_loopback.c */
+int smsc_loopback_create(SMSCConn *conn, CfgGroup *cfg);
 
 /* ADD NEW CREATE FUNCTIONS HERE
  *

@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -80,7 +80,7 @@ static void *sqlite3_open_conn(const DBConf *db_conf)
         goto failed;
     }
     if (conf->lock_timeout > 0) {
-    	info(0, "SQLite3: Setting lock timeout to %ld", conf->lock_timeout);
+    	info(0, "SQLite3: Setting lock timeout to %d", conf->lock_timeout);
     	sqlite3_busy_timeout(db, conf->lock_timeout);
     }
 

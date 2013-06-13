@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -63,6 +63,8 @@
  *      2003 Made dbpool more generic.
  * Robert Ga³ach <robert.galach@my.tenbit.pl>
  *      2004 Added support for binding variables.
+ * Alejandro Guerrieri <aguerrieri at kannel dot org>
+ *      2009 Added support for MS-SQL using FreeTDS
  */
 
 #include "gwlib.h"
@@ -77,6 +79,7 @@
 #include "dbpool_sqlite3.c"
 #include "dbpool_sdb.c"
 #include "dbpool_pgsql.c"
+#include "dbpool_mssql.c"
 
 
 static void dbpool_conn_destroy(DBPoolConn *conn)
@@ -111,6 +114,11 @@ DBPool *dbpool_create(enum db_type db_type, DBConf *conf, unsigned int connectio
     p->db_type = db_type;
 
     switch(db_type) {
+#ifdef HAVE_MSSQL
+        case DBPOOL_MSSQL:
+            p->db_ops = &mssql_ops;
+            break;
+#endif
 #ifdef HAVE_MYSQL
         case DBPOOL_MYSQL:
             p->db_ops = &mysql_ops;

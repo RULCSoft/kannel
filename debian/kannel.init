@@ -7,21 +7,6 @@
 # Make sure that the Kannel binaries can be found in $BOXPATH or somewhere
 # else along $PATH.  run_kannel_box has to be in $BOXPATH.
 
-### BEGIN INIT INFO
-# Provides:          kannel
-# Required-Start:    $local_fs $remote_fs
-# Required-Stop:     $local_fs $remote_fs
-# Should-Start:      $network $named
-# Should-Stop:       $network $named
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: SMS and WAP gateway
-# Description:       Kannel is a gateway for connecting WAP phones to the 
-#		     Internet. It also works as an SMS gateway.
-### END INIT INFO
-
-. /lib/lsb/init-functions
-
 BOXPATH=/usr/sbin
 PIDFILES=/var/run/kannel
 CONF=/etc/kannel/kannel.conf
@@ -36,69 +21,54 @@ test -x $BOXPATH/bearerbox || exit 0
 
 test -r /etc/default/kannel && . /etc/default/kannel
 
-if [ ! -d $PIDFILES ]
-then
-	mkdir $PIDFILES
-	chown kannel:root $PIDFILES
-fi
-
 case "$1" in
   start)
-    log_daemon_msg "Starting WAP gateway"
-    log_progress_msg "bearerbox"
+    echo -n "Starting WAP gateway:"
+    echo -n " bearerbox"
     start-stop-daemon --start --quiet \
 	--pidfile $PIDFILES/kannel_bearerbox.pid \
 	--chuid kannel \
-	--exec $BOXPATH/run_kannel_box \
-	-- \
-	--pidfile $PIDFILES/kannel_bearerbox.pid \
-	--no-extra-args \
-	$BOXPATH/bearerbox -v 4 -- $CONF
+	--exec $BOXPATH/bearerbox -- -v 4 --parachute --daemonize \
+		--pid-file $PIDFILES/kannel_bearerbox.pid  $CONF 
     sleep 1 # Wait for bearerbox
     test ! -z $START_WAPBOX && (
-    log_progress_msg "wapbox"
+    echo -n " wapbox"
 	start-stop-daemon --start --quiet \
     	    --pidfile $PIDFILES/kannel_wapbox.pid \
 	    --chuid kannel \
-	    --exec $BOXPATH/run_kannel_box \
-	    -- \
-	    --pidfile $PIDFILES/kannel_wapbox.pid \
-	    --no-extra-args \
-	    $BOXPATH/wapbox -v 4 -- $CONF
+	    --exec $BOXPATH/wapbox -- -v 4 --parachute --daemonize \
+		--pid-file $PIDFILES/kannel_wapbox.pid $CONF 
     )
     test ! -z $START_SMSBOX && (
-    log_progress_msg "smsbox"
+    echo -n " smsbox"
 	start-stop-daemon --start --quiet \
     	    --pidfile $PIDFILES/kannel_smsbox.pid \
 	    --chuid kannel \
-	    --exec $BOXPATH/run_kannel_box \
-	    -- \
-	    --pidfile $PIDFILES/kannel_smsbox.pid \
-	    --no-extra-args \
-	    $BOXPATH/smsbox -v 4 -- $CONF
+	    --exec $BOXPATH/smsbox -- -v 4 --parachute --daemonize \
+		--pid-file $PIDFILES/kannel_smsbox.pid $CONF
     )
-    log_end_msg 0
+    echo "."
     ;;
 
   stop)
-    log_daemon_msg "Stopping WAP gateway"
+    echo -n "Stopping WAP gateway:"
     test ! -z $START_SMSBOX && (
-	log_progress_msg "smsbox"
+	echo -n " smsbox"
 	start-stop-daemon --stop --retry 5 --quiet \
     	    --pidfile $PIDFILES/kannel_smsbox.pid \
-	    --exec $BOXPATH/run_kannel_box
+	    --name smsbox
     )
     test ! -z $START_WAPBOX && (
-	log_progress_msg "wapbox"
+	echo -n " wapbox"
 	start-stop-daemon --stop --retry 5 --quiet \
     	    --pidfile $PIDFILES/kannel_wapbox.pid \
-	    --exec $BOXPATH/run_kannel_box
+	    --name wapbox
     )
-    log_progress_msg "bearerbox"
+    echo -n " bearerbox"
     start-stop-daemon --stop --retry 5 --quiet \
     	--pidfile $PIDFILES/kannel_bearerbox.pid \
-	--exec $BOXPATH/run_kannel_box
-    log_end_msg 0
+	--name bearerbox
+    echo "."
     ;;
 
   reload)

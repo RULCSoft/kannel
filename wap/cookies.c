@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -297,7 +297,7 @@ static Cookie *parse_cookie(Octstr *cookiestr)
 		else {		/* Name value pair - this should be first */
 			char *equals = NULL;
 
-			if ((equals = strrchr(p, '=')) != NULL) {
+			if ((equals = strchr(p, '=')) != NULL) {
 				*equals = '\0';
 
 				c->name = octstr_create(p);

@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -73,6 +73,7 @@
 #define	DLR_BUFFERED        0x04
 #define	DLR_SMSC_SUCCESS    0x08
 #define	DLR_SMSC_FAIL       0x10
+#define	DLR_INTERMEDIATE    0x20
 
 #define DLR_IS_DEFINED(dlr)          (dlr != DLR_UNDEFINED)
 #define DLR_IS_ENABLED(dlr)          (DLR_IS_DEFINED(dlr) && (dlr & (DLR_SUCCESS | DLR_FAIL | DLR_BUFFERED | DLR_SMSC_SUCCESS | DLR_SMSC_FAIL)))
@@ -85,6 +86,7 @@
 #define DLR_IS_BUFFERED(dlr)         (DLR_IS_DEFINED(dlr) && (dlr & DLR_BUFFERED))
 #define DLR_IS_SMSC_SUCCESS(dlr)     (DLR_IS_DEFINED(dlr) && (dlr & DLR_SMSC_SUCCESS))
 #define DLR_IS_SMSC_FAIL(dlr)        (DLR_IS_DEFINED(dlr) && (dlr & DLR_SMSC_FAIL))
+#define DLR_IS_INTERMEDIATE(dlr)     (DLR_IS_DEFINED(dlr) && (dlr & DLR_INTERMEDIATE))
 
 /* DLR initialization routine (abstracted) */
 void dlr_init(Cfg *cfg);
@@ -101,7 +103,7 @@ void dlr_add(const Octstr *smsc, const Octstr *ts, Msg *msg);
  * Find an entry in the list. If there is one a message is returned and 
  * the entry is removed from the list otherwhise the message returned is NULL 
  */
-Msg* dlr_find(const Octstr *smsc, const Octstr *ts, const Octstr *dst, int type);
+Msg* dlr_find(const Octstr *smsc, const Octstr *ts, const Octstr *dst, int type, int use_dst);
 
 /* return the number of DLR messages in the current waiting queue */
 long dlr_messages(void);

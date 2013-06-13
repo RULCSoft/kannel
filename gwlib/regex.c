@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -107,6 +107,7 @@ regex_t *gw_regex_comp_real(const Octstr *pattern, int cflags, const char *file,
         error(0, "%s:%ld: %s: regex compilation `%s' failed: %s (Called from %s:%ld:%s.)",
               __FILE__, (long) __LINE__, __func__, octstr_get_cstr(pattern), buffer, 
               (file), (long) (line), (func));
+        gw_free(preg);
         return NULL;
     }
 

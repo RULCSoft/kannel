@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -125,7 +125,15 @@ static int dlr_mem_entry_match(struct dlr_entry *dlr, const Octstr *smsc, const 
     /* XXX: check destination addr too, because e.g. for UCP is not enough to check only
      *          smsc and timestamp (timestamp is even without milliseconds)
      */
-    if(octstr_compare(dlr->smsc,smsc) == 0 && octstr_compare(dlr->timestamp,ts) == 0)
+    if (dst){
+        long pos = octstr_len(dlr->destination) - octstr_len(dst);
+
+        if (pos < 0)
+            return 1;
+
+        if (octstr_compare(dlr->smsc, smsc) == 0 && octstr_compare(dlr->timestamp, ts) == 0 && octstr_search(dlr->destination, dst, pos) != -1)
+            return 0;
+    } else if (octstr_compare(dlr->smsc, smsc) == 0 && octstr_compare(dlr->timestamp, ts) == 0)
         return 0;
 
     return 1;

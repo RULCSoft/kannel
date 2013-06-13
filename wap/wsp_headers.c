@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -1455,13 +1455,13 @@ struct headerinfo headerinfo[] =
         { WSP_HEADER_CONTENT_RANGE, pack_content_range, 0 },
         { WSP_HEADER_CONTENT_TYPE, wsp_pack_content_type, 0 },
         { WSP_HEADER_DATE, wsp_pack_date, 0 },
-        { WSP_HEADER_ETAG, wsp_pack_text, 0 },
+        { WSP_HEADER_ETAG, wsp_pack_quoted_text, 0 },
         { WSP_HEADER_EXPIRES, pack_expires, 0 },
         { WSP_HEADER_FROM, wsp_pack_text, 0 },
         { WSP_HEADER_HOST, wsp_pack_text, 0 },
         { WSP_HEADER_IF_MODIFIED_SINCE, wsp_pack_date, 0 },
-        { WSP_HEADER_IF_MATCH, wsp_pack_text, 0 },
-        { WSP_HEADER_IF_NONE_MATCH, wsp_pack_text, 0 },
+        { WSP_HEADER_IF_MATCH, wsp_pack_quoted_text, 0 },
+        { WSP_HEADER_IF_NONE_MATCH, wsp_pack_quoted_text, 0 },
         { WSP_HEADER_IF_RANGE, pack_if_range, 0 },
         { WSP_HEADER_IF_UNMODIFIED_SINCE, wsp_pack_date, 0 },
         { WSP_HEADER_LAST_MODIFIED, wsp_pack_date, 0 },
@@ -2646,7 +2646,7 @@ static int pack_if_range(Octstr *packed, Octstr *value)
     if (octstr_get_char(value, 0) == '"' ||
         (octstr_get_char(value, 0) == 'W' &&
          octstr_get_char(value, 1) == '/')) {
-        return wsp_pack_text(packed, value);   /* It's an etag */
+        return wsp_pack_quoted_text(packed, value);   /* It's an etag */
     } else {
         return wsp_pack_date(packed, value);
     }

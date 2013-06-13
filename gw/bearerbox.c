@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -89,6 +89,8 @@ List *outgoing_wdp;
 
 Counter *incoming_sms_counter;
 Counter *outgoing_sms_counter;
+Counter *incoming_dlr_counter;
+Counter *outgoing_dlr_counter;
 Counter *incoming_wdp_counter;
 Counter *outgoing_wdp_counter;
 
@@ -99,6 +101,8 @@ long max_outgoing_sms_qlength;
 
 Load *outgoing_sms_load;
 Load *incoming_sms_load;
+Load *incoming_dlr_load;
+Load *outgoing_dlr_load;
 
 
 /* this is not a list of items; instead it is used as
@@ -121,6 +125,9 @@ List *suspended;
  * (suspended state puts producers for both lists)
  */
 List *isolated;
+
+/* configuration filename */
+Octstr *cfg_filename;
 
 volatile sig_atomic_t bb_status;
 
@@ -226,9 +233,15 @@ static int start_smsc(Cfg *cfg)
     if (started) 
         return 0;
 
-    smsbox_start(cfg);
+    if (smsbox_start(cfg) == -1) {
+        error(0, "Unable to start smsbox module.");
+        return -1;
+    }
 
-    smsc2_start(cfg);
+    if (smsc2_start(cfg) == -1) {
+        error(0, "Unable to start smsc module.");
+        return -1;
+    }
 
     started = 1;
     return 0;
@@ -357,7 +370,7 @@ static Cfg *init_bearerbox(Cfg *cfg)
 {
     CfgGroup *grp;
     Octstr *log, *val;
-    long loglevel, store_dump_freq;
+    long loglevel, store_dump_freq, value;
     int lf, m;
 #ifdef HAVE_LIBSSL
     Octstr *ssl_server_cert_file;
@@ -454,6 +467,8 @@ static Cfg *init_bearerbox(Cfg *cfg)
 
     outgoing_sms_counter = counter_create();
     incoming_sms_counter = counter_create();
+    incoming_dlr_counter = counter_create();
+    outgoing_dlr_counter = counter_create();
     outgoing_wdp_counter = counter_create();
     incoming_wdp_counter = counter_create();
 
@@ -469,6 +484,16 @@ static Cfg *init_bearerbox(Cfg *cfg)
     load_add_interval(incoming_sms_load, 60);
     load_add_interval(incoming_sms_load, 300);
     load_add_interval(incoming_sms_load, -1);
+    incoming_dlr_load = load_create();
+    /* add 60,300,-1 entries to dlr */
+    load_add_interval(incoming_dlr_load, 60);
+    load_add_interval(incoming_dlr_load, 300);
+    load_add_interval(incoming_dlr_load, -1);
+    outgoing_dlr_load = load_create();
+    /* add 60,300,-1 entries to dlr */
+    load_add_interval(outgoing_dlr_load, 60);
+    load_add_interval(outgoing_dlr_load, 300);
+    load_add_interval(outgoing_dlr_load, -1);
 
     setup_signal_handlers();
     
@@ -492,14 +517,22 @@ static Cfg *init_bearerbox(Cfg *cfg)
                                   octstr_imm("sms-outgoing-queue-limit")) == -1)
         max_outgoing_sms_qlength = -1;
 
+    if (max_outgoing_sms_qlength < 0)
+        max_outgoing_sms_qlength = DEFAULT_OUTGOING_SMS_QLENGTH;
+
+    if (cfg_get_integer(&value, grp, octstr_imm("http-timeout")) == 0)
+        http_set_client_timeout(value);
 #ifndef NO_SMS    
     {
         List *list;
 	
         list = cfg_get_multi_group(cfg, octstr_imm("smsc"));
         if (list != NULL) {
-            start_smsc(cfg);
-            gwlist_destroy(list, NULL);
+           gwlist_destroy(list, NULL); 
+           if (start_smsc(cfg) == -1) {
+               panic(0, "Unable to start SMSCs.");
+               return NULL;
+           }
         }
     }
 #endif
@@ -550,19 +583,25 @@ static void empty_msg_lists(void)
         debug("bb", 0, "Remaining SMS: %ld incoming, %ld outgoing",
               gwlist_len(incoming_sms), gwlist_len(outgoing_sms));
 
-    info(0, "Total SMS messages: received %ld, sent %ld",
+    info(0, "Total SMS messages: received %ld, dlr %ld, sent %ld, dlr %ld",
          counter_value(incoming_sms_counter),
-         counter_value(outgoing_sms_counter));
+         counter_value(incoming_dlr_counter),
+         counter_value(outgoing_sms_counter),
+         counter_value(outgoing_dlr_counter));
 #endif
 
     gwlist_destroy(incoming_sms, msg_destroy_item);
     gwlist_destroy(outgoing_sms, msg_destroy_item);
     
     counter_destroy(incoming_sms_counter);
+    counter_destroy(incoming_dlr_counter);
     counter_destroy(outgoing_sms_counter);
+    counter_destroy(outgoing_dlr_counter);
 
     load_destroy(incoming_sms_load);
+    load_destroy(incoming_dlr_load);
     load_destroy(outgoing_sms_load);
+    load_destroy(outgoing_dlr_load);
 }
 
 
@@ -591,7 +630,6 @@ int main(int argc, char **argv)
 {
     int cf_index;
     Cfg *cfg;
-    Octstr *filename;
 
     bb_status = BB_RUNNING;
     
@@ -606,15 +644,13 @@ int main(int argc, char **argv)
     cf_index = get_and_set_debugs(argc, argv, check_args);
 
     if (argv[cf_index] == NULL)
-        filename = octstr_create("kannel.conf");
+        cfg_filename = octstr_create("kannel.conf");
     else
-        filename = octstr_create(argv[cf_index]);
-    cfg = cfg_create(filename); 
+        cfg_filename = octstr_create(argv[cf_index]);
+    cfg = cfg_create(cfg_filename);
     
     if (cfg_read(cfg) == -1)
-        panic(0, "Couldn't read configuration from `%s'.", octstr_get_cstr(filename));
-    
-    octstr_destroy(filename);
+        panic(0, "Couldn't read configuration from `%s'.", octstr_get_cstr(cfg_filename));
 
     dlr_init(cfg);
     
@@ -622,7 +658,8 @@ int main(int argc, char **argv)
 
     flow_threads = gwlist_create();
     
-    init_bearerbox(cfg);
+    if (init_bearerbox(cfg) == NULL)
+        panic(0, "Initialization failed.");
 
     info(0, "----------------------------------------");
     info(0, GW_NAME " bearerbox II version %s starting", GW_VERSION);
@@ -701,6 +738,7 @@ int main(int argc, char **argv)
     alog_close();		/* if we have any */
     bb_alog_shutdown();
     cfg_destroy(cfg);
+    octstr_destroy(cfg_filename);
     dlr_shutdown();
     gwlib_shutdown();
 
@@ -821,6 +859,16 @@ int bb_restart_smsc(Octstr *id)
     return smsc2_restart_smsc(id);
 }
 
+int bb_add_smsc(Octstr *id)
+{
+    return smsc2_add_smsc(id);
+}
+
+int bb_remove_smsc(Octstr *id)
+{
+    return smsc2_remove_smsc(id);
+}
+
 int bb_restart(void)
 {
     restart = 1;
@@ -862,9 +910,12 @@ Octstr *bb_print_status(int status_type)
                " <p>WDP: received %ld (%ld queued), sent %ld "
                "(%ld queued)</p>\n\n"
                " <p>SMS: received %ld (%ld queued), sent %ld "
-               "(%ld queued), store size %ld</p>\n"
-               " <p>SMS: inbound (%.2f,%.2f,%.2f) msg/sec, outbound (%.2f,%.2f,%.2f) msg/sec</p>\n\n"
-               " <p>DLR: %ld queued, using %s storage</p>\n\n";
+               "(%ld queued), store size %ld<br>\n"
+               " SMS: inbound (%.2f,%.2f,%.2f) msg/sec, "
+               "outbound (%.2f,%.2f,%.2f) msg/sec</p>\n\n"
+               " <p>DLR: received %ld, sent %ld<br>\n"
+               " DLR: inbound (%.2f,%.2f,%.2f) msg/sec, outbound (%.2f,%.2f,%.2f) msg/sec<br>\n"
+               " DLR: %ld queued, using %s storage</p>\n\n";
         footer = "<p>";
     } else if (status_type == BBSTATUS_WML) {
         frmt = "%s</p>\n\n"
@@ -875,8 +926,12 @@ Octstr *bb_print_status(int status_type)
                "      SMS: sent %ld (%ld queued)<br/>\n"
                "      SMS: store size %ld<br/>\n"
                "      SMS: inbound (%.2f,%.2f,%.2f) msg/sec<br/>\n"
-               "      SMS: outbound (%.2f,%.2f,%.2f) msg/sec</p>\n\n"
-               "   <p>DLR: %ld queued<br/>\n"
+               "      SMS: outbound (%.2f,%.2f,%.2f) msg/sec</p>\n"
+               "   <p>DLR: received %ld<br/>\n"
+               "      DLR: sent %ld<br/>\n"
+               "      DLR: inbound (%.2f,%.2f,%.2f) msg/sec<br/>\n"
+               "      DLR: outbound (%.2f,%.2f,%.2f) msg/sec<br/>\n"
+               "      DLR: %ld queued<br/>\n"
                "      DLR: using %s storage</p>\n\n";
         footer = "<p>";
     } else if (status_type == BBSTATUS_XML) {
@@ -888,14 +943,23 @@ Octstr *bb_print_status(int status_type)
                "\t<sms>\n\t\t<received><total>%ld</total><queued>%ld</queued>"
                "</received>\n\t\t<sent><total>%ld</total><queued>%ld</queued>"
                "</sent>\n\t\t<storesize>%ld</storesize>\n\t\t"
-               "<inbound>%.2f,%.2f,%.2f</inbound>\n\t\t<outbound>%.2f,%.2f,%.2f</outbound>\n\t</sms>\n"
-               "\t<dlr>\n\t\t<queued>%ld</queued>\n\t\t<storage>%s</storage>\n\t</dlr>\n";
+               "<inbound>%.2f,%.2f,%.2f</inbound>\n\t\t"
+               "<outbound>%.2f,%.2f,%.2f</outbound>\n\t\t"
+               "</sms>\n"
+               "\t<dlr>\n\t\t<received><total>%ld</total></received>\n\t\t"
+               "<sent><total>%ld</total></sent>\n\t\t"
+               "<inbound>%.2f,%.2f,%.2f</inbound>\n\t\t"
+               "<outbound>%.2f,%.2f,%.2f</outbound>\n\t\t"
+               "<queued>%ld</queued>\n\t\t<storage>%s</storage>\n\t</dlr>\n";
         footer = "";
     } else {
         frmt = "%s\n\nStatus: %s, uptime %ldd %ldh %ldm %lds\n\n"
                "WDP: received %ld (%ld queued), sent %ld (%ld queued)\n\n"
                "SMS: received %ld (%ld queued), sent %ld (%ld queued), store size %ld\n"
-               "SMS: inbound (%.2f,%.2f,%.2f) msg/sec, outbound (%.2f,%.2f,%.2f) msg/sec\n\n"
+               "SMS: inbound (%.2f,%.2f,%.2f) msg/sec, "
+               "outbound (%.2f,%.2f,%.2f) msg/sec\n\n"
+               "DLR: received %ld, sent %ld\n"
+               "DLR: inbound (%.2f,%.2f,%.2f) msg/sec, outbound (%.2f,%.2f,%.2f) msg/sec\n"
                "DLR: %ld queued, using %s storage\n\n";
         footer = "";
     }
@@ -911,6 +975,9 @@ Octstr *bb_print_status(int status_type)
         store_messages(),
         load_get(incoming_sms_load,0), load_get(incoming_sms_load,1), load_get(incoming_sms_load,2),
         load_get(outgoing_sms_load,0), load_get(outgoing_sms_load,1), load_get(outgoing_sms_load,2),
+        counter_value(incoming_dlr_counter), counter_value(outgoing_dlr_counter),
+        load_get(incoming_dlr_load,0), load_get(incoming_dlr_load,1), load_get(incoming_dlr_load,2),
+        load_get(outgoing_dlr_load,0), load_get(outgoing_dlr_load,1), load_get(outgoing_dlr_load,2),
         dlr_messages(), dlr_type());
 
     octstr_destroy(version);

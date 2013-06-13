@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -71,6 +71,7 @@
  * accident protectors. 
  */
 #undef malloc
+#undef calloc
 #undef realloc
 #undef free
 
@@ -90,6 +91,20 @@ void *gw_native_malloc(size_t size)
     return ptr;
 }
 
+void *gw_native_calloc(int nmemb, size_t size)
+{
+    void *ptr;
+
+    /* ANSI C89 says malloc(0) is implementation-defined.  Avoid it. */
+    gw_assert(size > 0);
+    gw_assert(nmemb > 0);
+
+    ptr = calloc(nmemb, size);
+    if (ptr == NULL)
+        panic(errno, "Memory allocation failed");
+
+    return ptr;
+}
 
 void *gw_native_realloc(void *ptr, size_t size)
 {
@@ -114,10 +129,12 @@ void gw_native_free(void *ptr)
 char *gw_native_strdup(const char *str)
 {
     char *copy;
+    int size;
 
     gw_assert(str != NULL);
+    size = strlen(str) + 1;
 
-    copy = gw_native_malloc(strlen(str) + 1);
-    strcpy(copy, str);
+    copy = gw_native_malloc(size);
+    memcpy(copy, str, size);
     return copy;
 }

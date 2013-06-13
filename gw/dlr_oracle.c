@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -127,6 +127,8 @@ static void dlr_add_oracle(struct dlr_entry *entry)
     Octstr *sql, *os_mask;
     DBPoolConn *pconn;
     List *binds = gwlist_create();
+    int res;
+
     debug("dlr.oracle", 0, "adding DLR entry into database");
 
     pconn = dbpool_conn_consume(pool);
@@ -155,8 +157,10 @@ static void dlr_add_oracle(struct dlr_entry *entry)
 #if defined(DLR_TRACE)
     debug("dlr.oracle", 0, "sql: %s", octstr_get_cstr(sql));
 #endif
-    if (dbpool_conn_update(pconn, sql, binds) == -1)
+    if ((res = dbpool_conn_update(pconn, sql, binds)) == -1)
         error(0, "DLR: ORACLE: Error while adding dlr entry for DST<%s>", octstr_get_cstr(entry->destination));
+    else if (!res)
+        warning(0, "DLR: ORACLE: No dlr inserted for DST<%s>", octstr_get_cstr(entry->destination));
 
     dbpool_conn_produce(pconn);
     octstr_destroy(sql);
@@ -167,9 +171,10 @@ static void dlr_add_oracle(struct dlr_entry *entry)
 
 static void dlr_remove_oracle(const Octstr *smsc, const Octstr *ts, const Octstr *dst)
 {
-    Octstr *sql;
+    Octstr *sql, *like;
     DBPoolConn *pconn;
     List *binds = gwlist_create();
+    int res;
 
     debug("dlr.oracle", 0, "removing DLR from database");
 
@@ -178,29 +183,38 @@ static void dlr_remove_oracle(const Octstr *smsc, const Octstr *ts, const Octstr
     if (pconn == NULL)
         return;
 
-    sql = octstr_format("DELETE FROM %S WHERE %S=:1 AND %S=:2 AND %S=:3 AND ROWNUM < 2",
+    if (dst)
+        like = octstr_format("AND %S LIKE CONCAT('%%', :3)", fields->field_dst);
+    else
+        like = octstr_imm("");
+
+    sql = octstr_format("DELETE FROM %S WHERE %S=:1 AND %S=:2 %S AND ROWNUM < 2",
                         fields->table, fields->field_smsc,
-                        fields->field_ts, fields->field_dst);
+                        fields->field_ts, like);
 
     gwlist_append(binds, (Octstr *)smsc);      /* :1 */
     gwlist_append(binds, (Octstr *)ts);        /* :2 */
-    gwlist_append(binds, (Octstr *)dst);       /* :3 */
+    if (dst)                                   /* :3 */
+        gwlist_append(binds, (Octstr *)dst);
 
 #if defined(DLR_TRACE)
     debug("dlr.oracle", 0, "sql: %s", octstr_get_cstr(sql));
 #endif
 
-    if (dbpool_conn_update(pconn, sql, binds) == -1)
+    if ((res = dbpool_conn_update(pconn, sql, binds)) == -1)
         error(0, "DLR: ORACLE: Error while removing dlr entry for DST<%s>", octstr_get_cstr(dst));
+    else if (!res)
+        warning(0, "DLR: ORACLE: No dlr deleted for DST<%s>", octstr_get_cstr(dst));
 
     dbpool_conn_produce(pconn);
     gwlist_destroy(binds, NULL);
     octstr_destroy(sql);
+    octstr_destroy(like);
 }
 
 static struct dlr_entry* dlr_get_oracle(const Octstr *smsc, const Octstr *ts, const Octstr *dst)
 {
-    Octstr *sql;
+    Octstr *sql, *like;
     DBPoolConn *pconn;
     List *result = NULL, *row;
     struct dlr_entry *res = NULL;
@@ -210,26 +224,35 @@ static struct dlr_entry* dlr_get_oracle(const Octstr *smsc, const Octstr *ts, co
     if (pconn == NULL) /* should not happens, but sure is sure */
         return NULL;
 
-    sql = octstr_format("SELECT %S, %S, %S, %S, %S, %S FROM %S WHERE %S=:1 AND %S=:2 AND %S=:3 AND ROWNUM < 2",
+    if (dst)
+        like = octstr_format("AND %S LIKE CONCAT('%%', :3)",
+              fields->field_dst);
+    else
+        like = octstr_imm("");
+
+    sql = octstr_format("SELECT %S, %S, %S, %S, %S, %S FROM %S WHERE %S=:1 AND %S=:2 %S ROWNUM < 2",
                         fields->field_mask, fields->field_serv,
                         fields->field_url, fields->field_src,
                         fields->field_dst, fields->field_boxc,
                         fields->table, fields->field_smsc,
-                        fields->field_ts, fields->field_dst);
+                        fields->field_ts, like);
 
     gwlist_append(binds, (Octstr *)smsc);      /* :1 */
     gwlist_append(binds, (Octstr *)ts);        /* :2 */
-    gwlist_append(binds, (Octstr *)dst);       /* :3 */
+    if (dst)                                   /* :3 */
+        gwlist_append(binds, (Octstr *)dst);
 
 #if defined(DLR_TRACE)
     debug("dlr.oracle", 0, "sql: %s", octstr_get_cstr(sql));
 #endif
     if (dbpool_conn_select(pconn, sql, binds, &result) != 0) {
         octstr_destroy(sql);
+        octstr_destroy(like);
         dbpool_conn_produce(pconn);
         return NULL;
     }
     octstr_destroy(sql);
+    octstr_destroy(like);
     gwlist_destroy(binds, NULL);
     dbpool_conn_produce(pconn);
 
@@ -257,9 +280,10 @@ static struct dlr_entry* dlr_get_oracle(const Octstr *smsc, const Octstr *ts, co
 
 static void dlr_update_oracle(const Octstr *smsc, const Octstr *ts, const Octstr *dst, int status)
 {
-    Octstr *sql, *os_status;
+    Octstr *sql, *os_status, *like;
     DBPoolConn *pconn;
     List *binds = gwlist_create();
+    int res;
 
     debug("dlr.oracle", 0, "updating DLR status in database");
 
@@ -268,25 +292,35 @@ static void dlr_update_oracle(const Octstr *smsc, const Octstr *ts, const Octstr
     if (pconn == NULL)
         return;
 
-    sql = octstr_format("UPDATE %S SET %S=:1 WHERE %S=:2 AND %S=:3 AND %S=:4 AND ROWNUM < 2",
+    if (dst)
+        like = octstr_format("AND %S LIKE CONCAT('%%', :4)", fields->field_dst);
+    else
+        like = octstr_imm("");
+
+    sql = octstr_format("UPDATE %S SET %S=:1 WHERE %S=:2 AND %S=:3 %S AND ROWNUM < 2",
                         fields->table, fields->field_status,
-                        fields->field_smsc, fields->field_ts, fields->field_dst);
+                        fields->field_smsc, fields->field_ts, like);
 
     os_status = octstr_format("%d", status);
     gwlist_append(binds, (Octstr *)os_status); /* :1 */
     gwlist_append(binds, (Octstr *)smsc);      /* :2 */
     gwlist_append(binds, (Octstr *)ts);        /* :3 */
-    gwlist_append(binds, (Octstr *)dst);       /* :4 */
+    if (dst)                                   /* :4 */
+        gwlist_append(binds, (Octstr *)dst);
+
 #if defined(DLR_TRACE)
     debug("dlr.oracle", 0, "sql: %s", octstr_get_cstr(sql));
 #endif
-    if (dbpool_conn_update(pconn, sql, binds) == -1)
+    if ((res = dbpool_conn_update(pconn, sql, binds)) == -1)
         error(0, "DLR: ORACLE: Error while updating dlr entry for DST<%s>", octstr_get_cstr(dst));
+    else if (!res)
+        warning(0, "DLR: ORACLE: No dlr found to update for DST<%s> (status: %d)", octstr_get_cstr(dst), status);
 
     dbpool_conn_produce(pconn);
     gwlist_destroy(binds, NULL);
     octstr_destroy(os_status);
     octstr_destroy(sql);
+    octstr_destroy(like);
 }
 
 static void dlr_flush_oracle (void)
@@ -300,7 +334,7 @@ static void dlr_flush_oracle (void)
     if (pconn == NULL)
         return;
 
-    sql = octstr_format("DELETE FROM DLR");
+    sql = octstr_format("DELETE FROM %S", fields->table);
 #if defined(DLR_TRACE)
     debug("dlr.oracle", 0, "sql: %s", octstr_get_cstr(sql));
 #endif

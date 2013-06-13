@@ -1,62 +1,58 @@
-Source: kannel
+Source: kannel-cvs
 Section: net
 Priority: optional
-Maintainer: Paul Dwerryhouse <paul@dwerryhouse.com.au>
-Uploaders: Jonas Smedegaard <dr@jones.dk>
-Build-Depends: debhelper (>> 7.0.0), libxml2-dev, libssl-dev (>= 0.9.8), openssl, libmysqlclient-dev | libmysqlclient15-dev, libsqlite0-dev, sqlite, libsqlite3-dev, sqlite3, libpq-dev, libpam0g-dev, autoconf, automake, autotools-dev, libpcre3-dev
-Build-Depends-Indep: docbook-dsssl, jadetex, transfig, imagemagick, ghostscript, jade, docbook
-Vcs-Git: git://git.debian.org/git/collab-maint/kannel.git
-Vcs-Browser: http://git.debian.org/?p=collab-maint/kannel.git;a=summary
-Homepage: http://www.kannel.org/
-Standards-Version: 3.8.4
+Maintainer: Bruno Rodrigues <bruno.rodrigues@litux.org>
+Build-Depends: debhelper (>> 4.0.0), libxml2-dev, libssl-dev, openssl, libmysqlclient10-dev, libpam0g-dev
+Build-Depends-Indep: debhelper (>> 4.0.0), docbook-dsssl, jadetex, transfig, imagemagick, gs
+Standards-Version: 3.5.9
 
-Package: kannel
+Package: kannel-cvs
 Architecture: any
 Section: net
 Priority: optional
-Depends: ${shlibs:Depends}, ${misc:Depends}, adduser, psmisc
-Conflicts: kannel-devel, kannel-cvs
-Replaces: kannel-devel, kannel-cvs
-Description: WAP and SMS gateway
+Depends: ${shlibs:Depends}
+Conflicts: kannel, kannel-devel
+Replaces: kannel, kannel-devel
+Description: WAP and SMS gateway (cvs)
  Kannel is a gateway for connecting WAP (Wireless Application Protocol)
- phones to the Internet. It also works as an SMS/SMPP gateway, for
- providing SMS based services for GSM phones.
+ phones to the Internet. It also works as an SMS gateway, for providing
+ SMS based services for GSM phones.
  .
- Compiled with ssl, MySQL and native malloc.
+ Compiled with ssl, mysql and native malloc.
+ .
+ Development and/or CVS versions are stable enough and encouraged to use
+ to enable constant testing. CVS bugs are usually fixed in one or to days
+ and a lot of developers use stable CVS versions in production.
 
-Package: kannel-extras
+Package: kannel-cvs-extras
 Architecture: any
 Section: net
 Priority: optional
-Suggests: python
-Depends: ${shlibs:Depends}, ${misc:Depends}, kannel (= ${binary:Version})
-Description: WAP and SMS gateway extras
+Suggests: kannel-cvs, python
+Depends: ${shlibs:Depends}
+Description: WAP and SMS gateway extras (cvs)
  Kannel is a gateway for connecting WAP (Wireless Application Protocol)
- phones to the Internet. It also works as an SMS/SMPP gateway, for
- providing SMS based services for GSM phones.
+ phones to the Internet. It also works as an SMS gateway, for providing
+ SMS based services for GSM phones.
  .
  Test utilities and contrib data.
+ .
+ Development and/or CVS versions are stable enough and encouraged to use
+ to enable constant testing. CVS bugs are usually fixed in one or to days
+ and a lot of developers use stable CVS versions in production.
 
-Package: kannel-docs
+Package: kannel-cvs-docs
 Architecture: all
-Section: doc
-Depends: ${misc:Depends}
-Suggests: kannel
+Section: net
+Suggests: kannel-cvs
 Priority: optional
-Description: WAP and SMS gateway documentation
+Description: WAP and SMS gateway documentation (cvs)
  Kannel is a gateway for connecting WAP (Wireless Application Protocol)
- phones to the Internet. It also works as an SMS/SMPP gateway, for
- providing SMS based services for GSM phones.
+ phones to the Internet. It also works as an SMS gateway, for providing
+ SMS based services for GSM phones.
  .
  Documentation in html, rtf and pdf format.
-
-Package: kannel-dev
-Architecture: any
-Section: devel
-Depends: ${misc:Depends}, libssl-dev, libpam0g-dev, libxml2-dev, libpcre3-dev, libmysqlclient-dev, libsqlite0-dev, libsqlite3-dev, libpq-dev
-Description: WAP and SMS gateway headers and development files
- Kannel is a gateway for connecting WAP (Wireless Application Protocol)
- phones to the Internet. It also works as an SMS/SMPP gateway, for
- providing SMS based services for GSM phones.
  .
- Headers and development files.
+ Development and/or CVS versions are stable enough and encouraged to use
+ to enable constant testing. CVS bugs are usually fixed in one or to days
+ and a lot of developers use stable CVS versions in production.

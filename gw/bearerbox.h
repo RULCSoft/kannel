@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -65,6 +65,8 @@
 #include "smscconn.h"
 #include "bb_store.h"
 
+/* Default outgoing queue length */
+#define DEFAULT_OUTGOING_SMS_QLENGTH    1000000
 
 /* general bearerbox state */
 
@@ -170,6 +172,8 @@ long smsc2_rout(Msg *msg, int resend);
 
 int smsc2_stop_smsc(Octstr *id);   /* shutdown a specific smsc */
 int smsc2_restart_smsc(Octstr *id);  /* re-start a specific smsc */
+int smsc2_add_smsc(Octstr *id);   /* add a new smsc */
+int smsc2_remove_smsc(Octstr *id);   /* remove a specific smsc */
 
 
 /*---------------
@@ -208,8 +212,11 @@ int bb_resume(void);
 int bb_restart(void);
 int bb_flush_dlr(void);
 int bb_stop_smsc(Octstr *id);
+int bb_add_smsc(Octstr *id);
+int bb_remove_smsc(Octstr *id);
 int bb_restart_smsc(Octstr *id);
 int bb_reload_lists(void);
+int bb_reload_smsc_groups(void);
 
 /* return string of current status */
 Octstr *bb_print_status(int status_type);

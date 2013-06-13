@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -67,66 +67,67 @@
  */
 
 MSG(heartbeat,
-	{
-		INTEGER(load);
-	})
+    {
+        INTEGER(load)
+    })
 
 MSG(admin,
     {
-        INTEGER(command);
-        OCTSTR(boxc_id);
+        INTEGER(command)
+        OCTSTR(boxc_id)
     })
     
 MSG(sms,
-	{
-		OCTSTR(sender);
-		OCTSTR(receiver);
-		OCTSTR(udhdata);
-		OCTSTR(msgdata);
-		INTEGER(time);
-		OCTSTR(smsc_id);
-		OCTSTR(smsc_number);
-		OCTSTR(foreign_id);
-		OCTSTR(service);
-		OCTSTR(account);
-		UUID(id);
-		INTEGER(sms_type);
-		INTEGER(mclass);
-		INTEGER(mwi);
-		INTEGER(coding);
-		INTEGER(compress);
-		INTEGER(validity);
-		INTEGER(deferred);
-		INTEGER(dlr_mask);
-		OCTSTR(dlr_url);
-		INTEGER(pid);
-		INTEGER(alt_dcs);
-		INTEGER(rpi);
-		OCTSTR(charset);
-		OCTSTR(boxc_id);
-		OCTSTR(binfo);
-		INTEGER(msg_left);
-		VOID(split_parts);
-		INTEGER(priority);
-                INTEGER(resend_try);
-                INTEGER(resend_time);
-	})
+    {
+        OCTSTR(sender)
+        OCTSTR(receiver)
+        OCTSTR(udhdata)
+        OCTSTR(msgdata)
+        INTEGER(time)
+        OCTSTR(smsc_id)
+        OCTSTR(smsc_number)
+        OCTSTR(foreign_id)
+        OCTSTR(service)
+        OCTSTR(account)
+        UUID(id)
+        INTEGER(sms_type)
+        INTEGER(mclass)
+        INTEGER(mwi)
+        INTEGER(coding)
+        INTEGER(compress)
+        INTEGER(validity)
+        INTEGER(deferred)
+        INTEGER(dlr_mask)
+        OCTSTR(dlr_url)
+        INTEGER(pid)
+        INTEGER(alt_dcs)
+        INTEGER(rpi)
+        OCTSTR(charset)
+        OCTSTR(boxc_id)
+        OCTSTR(binfo)
+        INTEGER(msg_left)
+        VOID(split_parts)
+        INTEGER(priority)
+        INTEGER(resend_try)
+        INTEGER(resend_time)
+        OCTSTR(meta_data)
+    })
 
 MSG(ack,
-	{
-		INTEGER(nack);
-		INTEGER(time);
-		UUID(id);
-	})
+    {
+        INTEGER(nack)
+        INTEGER(time)
+        UUID(id)
+    })
     
 MSG(wdp_datagram,
-	{
-		OCTSTR(source_address);
-		INTEGER(source_port);
-		OCTSTR(destination_address);
-		INTEGER(destination_port);
-		OCTSTR(user_data);
-	})
+    {
+        OCTSTR(source_address)
+        INTEGER(source_port)
+        OCTSTR(destination_address)
+        INTEGER(destination_port)
+        OCTSTR(user_data)
+    })
 
 #undef MSG
 #undef INTEGER

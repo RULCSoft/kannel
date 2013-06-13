@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -64,6 +64,11 @@ int main(int argc, char **argv)
     int i;
     
     gwlib_init();
+
+    get_and_set_debugs(argc, argv, NULL);
+
+    if (argc < 2)
+        panic(0, "Syntax: %s <config_file>\n", argv[0]);
 
     for (i = 1; i < argc; ++i) {
         name = octstr_create(argv[i]);

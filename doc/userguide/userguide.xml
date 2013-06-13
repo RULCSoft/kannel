@@ -68,7 +68,7 @@
 		<firstname>Alexander</firstname>
 		<surname>Malysh</surname>
 		<affiliation>
-			<jobtitle>Developer</jobtitle>
+			<jobtitle>Senior Software Engineer</jobtitle>
 			<orgname>GTX Ltd.</orgname>
 			<address> 
 				<email>amalysh at kannel.org</email>
@@ -613,6 +613,12 @@
 
 	    Enable using PAM for authentication of sendsms users for
 	    smsbox.</para></listitem>
+
+        <listitem><para><literal>--with-mssql<replaceable>[=DIR]</replaceable></literal>
+
+            Enable using FreeTDS libraries for DBPool and
+            DLR support on MS-SQL and Sybase. Optional DIR specifies where to look for
+            FreeTDS libraries and include files (defaults to /usr/local).</para></listitem>
 
         <listitem><para><literal>--with-mysql</literal>
 
@@ -1319,7 +1325,7 @@ admin-password = f00bar
 		  String defining a custom log file line format. May use escape codes as defined
 		  later on to substitute values of the messages into the log entry. If no
 		  custom log format is used the standard format will be:
-		  <literal>"%t %l [SMSC:%i] [SVC:%n] [ACT:%A] [BINF:%B] [FID:%F] [from:%p] [to:%P] 
+		  <literal>"%t %l [SMSC:%i] [SVC:%n] [ACT:%A] [BINF:%B] [FID:%F] [META:%D] [from:%p] [to:%P] 
 		           [flags:%m:%c:%M:%C:%d] [msg:%L:%b] [udh:%U:%u]"</literal>
      </entry></row>
 
@@ -1466,9 +1472,10 @@ admin-password = f00bar
      <entry>type</entry>
      <entry valign="bottom">
         Defines the way DLRs are stored. If you have build-in external 
-		  DLR storage support, i.e. using MySQL you may define here the
-		  alternative storage type like 'mysql'. Supported types are:
-		  internal, mysql, oracle. By default this is set to 'internal'.
+          DLR storage support, i.e. using MySQL you may define here the
+          alternative storage type like 'mysql'. Supported types are:
+          internal, mysql, pgsql, sdb, mssql and oracle. By default this
+          is set to 'internal'.
      </entry></row>
 
      <row><entry><literal>maximum-queue-length</literal></entry>
@@ -1493,21 +1500,21 @@ admin-password = f00bar
      <entry valign="bottom">
         Set maximum size of outgoing message queue. After number of messages
         has hit this value, Kannel began to discard them.
-        Value -1 default, means that the queue of infinite length is accepted.
+        The default value, 1 million, works for most installations.
      </entry></row>
 
      <row><entry><literal>white-list-regex</literal></entry>
         <entry>POSIX regular expression</entry>
         <entry valign="bottom">
-        A regular expression defining the set of accepted senders. See section on regular 
-        expressions for details.
+        A regular expression defining the set of accepted senders.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
      <row><entry><literal>black-list-regex</literal></entry>
         <entry>POSIX regular expression</entry>
         <entry valign="bottom">
-        A regular expression defining the set of rejected senders. See section on regular 
-        expressions for details.
+        A regular expression defining the set of rejected senders.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -1549,6 +1556,13 @@ admin-password = f00bar
         Default 1800 seconds.
         </entry>   
      </row>
+
+    <row><entry><literal>http-timeout</literal></entry>
+     <entry>seconds</entry>
+     <entry valign="bottom">
+        Sets socket timeout in seconds for outgoing client http
+        connections. Optional. Defaults to 240 seconds.
+     </entry></row>
 
   </tbody>
   </tgroup>
@@ -1654,6 +1668,12 @@ white-list = "http://localhost/whitelist.txt"
   <title>Kannel Command Line Options</title>
   <tgroup cols="2">
   <tbody>
+   <row><entry><literal></literal></entry>
+        <entry morerows="1" valign="bottom">
+             Print the version of the Kannel binary.
+        </entry></row>
+   <row><entry><literal>--version</literal></entry></row>
+
    <row><entry><literal>-v &lt;level&gt;</literal></entry>
         <entry morerows="1" valign="bottom">
              Set verbosity level for stdout (screen) logging. Default is 0,
@@ -1904,7 +1924,9 @@ commands never arrive nor can you restart it via WAP anymore.</para>
    <entry valign="bottom">
         Re-start a single SMSC link. Password required. Additionally
 		  the <literal>smsc</literal> parameter must be given to identify
- 		  which <literal>smsc-id</literal> should be re-started.
+ 		  which <literal>smsc-admin-id</literal> should be re-started.
+        The configuration for the SMSC link is re-read from disk before
+        the action is performed.
    </entry></row>
 
   	<row><entry><literal>stop-smsc</literal></entry>
@@ -1912,6 +1934,21 @@ commands never arrive nor can you restart it via WAP anymore.</para>
         Shutdown a single SMSC link. Password required. Additionally
 		  the <literal>smsc</literal> parameter must be given (see above).
    </entry></row>
+
+    <row><entry><literal>add-smsc</literal></entry>
+    <entry valign="bottom">
+        Adds an SMSC link previously removed or created after the service was
+        started. Password required. Additionally the <literal>smsc</literal>
+        parameter must be given (see above).
+    </entry></row>
+
+    <row><entry><literal>remove-smsc</literal></entry>
+    <entry valign="bottom">
+        Removes an existing SMSC link. Password required. Additionally the
+        <literal>smsc</literal> parameter must be given (see above). If you
+        want a permanent removal, you should also remove the entry from the
+        configuration file or it will be recreated after a service restart.
+    </entry></row>
 
 	<row><entry><literal>restart</literal></entry>
    <entry valign="bottom">
@@ -2125,10 +2162,15 @@ bearerbox-host = localhost
 	 is assumed.
 	 </entry></row>
 
+    <row><entry><literal>http-timeout</literal></entry>
+     <entry>seconds</entry>
+     <entry valign="bottom">
+        Sets socket timeout in seconds for outgoing client http
+        connections. Optional. Defaults to 240 seconds.
+     </entry></row>
   </tbody>
   </tgroup>
  </table>
-
 
 <programlisting>
 </programlisting>
@@ -2430,6 +2472,19 @@ secret-nas = radius
 
      </entry></row>
 
+   <row><entry><literal>smsc-admin-id</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+        An optional id for the smsc to be used on administrative
+        commands. This allows commands targeted to individual binds
+        even if they share the same <literal>smsc-id</literal>
+        (for load balancing scenarios, for example). Any string is
+        acceptable, but semicolon ';' may cause problems, so avoid
+        it and any other special non-alphabet characters.
+        Several SMSCs can have the same admin-id, though it's not
+        recommended. The name is case-insensitive.
+     </entry></row>
+
     <row><entry><literal>throughput</literal></entry>
       <entry><literal>float (messages/sec)</literal></entry>
       <entry valign="bottom">
@@ -2605,8 +2660,7 @@ secret-nas = radius
         <entry valign="bottom">
         SMS messages with SMSC ID equal to any of the IDs in this set of SMSC IDs
         are always routed to this SMSC. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2615,8 +2669,7 @@ secret-nas = radius
         <entry valign="bottom">
         SMS messages with SMSC ID equal to any of the IDs in this set of SMSC IDs
         are never routed to this SMSC. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2625,8 +2678,7 @@ secret-nas = radius
         <entry valign="bottom">
         SMS messages with SMSC ID in this set of SMSC IDs are sent to this SMSC
         as preferred.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2635,8 +2687,7 @@ secret-nas = radius
         <entry valign="bottom">
         A set of phone number prefixes which are accepted to be
         sent through this SMSC. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2645,8 +2696,7 @@ secret-nas = radius
         <entry valign="bottom">
         A set of phone number prefixes which may not be
         sent through this SMSC. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2656,8 +2706,7 @@ secret-nas = radius
         As <literal>denied-prefix-regex</literal>, but SMS messages with receiver matching 
         any of these prefixes are preferably sent through this
         SMSC. In a case of multiple preferences, one is selected at random.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -2670,6 +2719,12 @@ secret-nas = radius
         </entry>   
      </row>
 
+     <row><entry><literal>meta-data</literal></entry>
+        <entry>string</entry>
+        <entry valign="bottom">url-encoded string with properly formatted meta-data pair(s)..
+        See <xref linkend="meta-data"> for an explanation about meta-data configuration and encoding.
+        </entry>   
+     </row>
   </tbody>
   </tgroup>
  </table>
@@ -3096,6 +3151,12 @@ address-range = ""
        The port number for the TRANSMITTER connection to the SMSC. 
        May be the same as receive-port. 
 		 Use value 0 to disable this I/O thread.
+     </entry></row>
+
+   <row><entry><literal>use-ssl</literal></entry>
+     <entry><literal>bool</literal></entry>
+     <entry valign="bottom">
+        Defines whether we should try to bind with SSL enabled connection.
      </entry></row>
 
    <row><entry><literal>transceiver-mode</literal></entry>
@@ -3878,6 +3939,16 @@ pin = 2345
                 storage will be used (usually "SM").
      </entry></row>
 
+   <row><entry><literal>message-start</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+        Optional integer, defaults to 1. Specifies starting index in
+                SIM buffer for new SMS. Most modems start numbering from 1,
+                however a few like the UMG181 start numbering from 0. This
+                parameter ensures that all SMS are fetched when using
+                "SIM buffering".
+     </entry></row>
+
    <row><entry><literal>enable-mms</literal></entry>
      <entry><literal>boolean</literal></entry>
      <entry valign="bottom">
@@ -3914,7 +3985,71 @@ pin = 2345
    It is recommended to use <literal>keepalive</literal> variable, in order to 
    automatically reconnect in case of network connectivity problems.</para>
 
+   <sect3>
+     <title>Modem initialization</title>
+     <para>This question has been asked frequently in the users mailing list. 
+     It usually comes in two forms:
 
+     <orderedlist>
+        <listitem><para>Modem doesn't receive or transmit SMS.</para>
+           <para>In its current implementation, the at driver will panic if it
+                 cannot find the modem device and bearerbox won't start. This
+                 can happen either because the wrong modem device is configured
+                 or the device has no write access for kannel's user.</para>
+           <para> In the first case use system logs to discover where is your
+                  modem assigned to:</para>
+           <para>grep tty /var/log/messages</para>
+           <para>Then verify that this is indeed your GSM modem device by
+                 connecting to it with minicom or wvdial and issuing a few AT
+                 commands. Wvdial is preferrable, since it can also give you a
+                 working <literal>init-string</literal></para>
+           <para>In the second case you need to give write access to kannel
+                 user. This is no problem if you run kannel as root, but it is
+                 not recommended to do so. In Ubuntu linux you just need to
+                 assign kannel user to group "dial". In other systems you can
+                 either:</para>
+           <programlisting>chmod 666 /dev/modem</programlisting>
+           <para>or preferably:</para>
+           <programlisting>
+chmod 664 /dev/modem
+chgrp <emphasis>group</emphasis> /dev/modem
+usermod -G <emphasis>group</emphasis> <emphasis>kannel-user</emphasis>
+           </programlisting>
+        </listitem>
+        <listitem><para>Modem doesn't receive DLRs or SMS.</para>
+           <para>By default the modem doesn't know how to treat incoming
+                 messages. To tell it to send it to kannel you have to
+                 configure <literal>init-string</literal> with the <emphasis>
+                 +CNMI=x,x,x,x,x</emphasis> command. X's are decimal numbers
+                 and CNMI stands for Command New Message Indication. There is
+                 no hard rule about its values. They are model and manufacturer
+                 specific. Best to consult modem manual or manufacturer's web
+                 site. Failing that, wvdialconf might give a working CNMI.
+                 Finally see modems.conf for examples and try out different
+                 values. Some Nokia phones do not support this command, but
+                 are ready to transmit incoming messages from the start.</para>
+           <para>Since this setting is modem specific, kannel cannot understand
+                 what it means from its value, and if using unconventional
+                 values you should tell kannel through <literal>sim-buffering
+                 </literal> and <literal> message-storage</literal>. In any
+                 case it is useful to add +CMEE = 1 or 2 in the <literal>
+                 init-string</literal> in order to make the modem more verbose
+                 in its responses.</para>
+           <programlisting>
+group = modems
+init-string = "AT+CNMI=2,3,0,1,0;+CMEE=1"
+message-storage = ME or SM    Depending on your modem, you may need to adjust it
+...
+
+group = smsc
+smsc = at
+sim-buffering = true          This will tell kannel to search for messages in
+...                           the modem (either memory or its SIM)
+           </programlisting>
+        </listitem>
+     </orderedlist>
+     </para>
+   </sect3>
 </sect2>
 
 
@@ -4054,38 +4189,217 @@ send-url = "http://localhost:20022"
      <entry valign="bottom">
        Password for username, if needed.
      </entry></row>
+   </tbody></tgroup></informaltable>
+
+<sect3>
+<title>The "generic" system-type</title>
+
+   <para>For a generic HTTP-based relay, the system-type 'generic' can be used.
+   It can use the escape codes known from sms-service's get-url config
+   directives in the send-url string to indicate the HTTP API calling style of
+   the remote HTTP server, and the 3 HTTP body response parsing regular
+   expressions 'status-success-regex' for successfull acknowledge,
+   'status-permfail-regex' for permanent failure and 'status-tempfail-regex'
+   for temporary failure. It can also accomodate the incoming parameters and response
+   codes and text. This system-type has a lot of extra parameters that gives it a lot
+   of flexibility:
+   </para>
+
+
+ <informaltable frame="none">
+  <tgroup cols="3"><thead><row>
+     <entry>Variable</entry>
+     <entry>Value</entry>
+     <entry>Description</entry>
+   </row></thead><tbody>
      
    <row><entry><literal>status-success-regex (o)</literal></entry>
      <entry><literal>POSIX regular expression</literal></entry>
      <entry valign="bottom">
-       Regular expression for system-type 'generic' to match against HTTP 
-       response body conent, indicating a successfull submission. 
+       Regular expression to match against HTTP
+       response body content, indicating a successful submission.
      </entry></row>
      
    <row><entry><literal>status-permfail-regex (o)</literal></entry>
      <entry><literal>POSIX regular expression</literal></entry>
      <entry valign="bottom">
-       Regular expression for system-type 'generic' to match against HTTP 
-       response body conent, indicating a permanent failure. 
+       Regular expression to match against HTTP
+       response body content, indicating a permanent failure.
      </entry></row>
 
    <row><entry><literal>status-tempfail-regex (o)</literal></entry>
      <entry><literal>POSIX regular expression</literal></entry>
      <entry valign="bottom">
-       Regular expression for system-type 'generic' to match against HTTP 
-       response body conent, indicating a temporary failure. 
+       Regular expression to match against HTTP
+       response body content, indicating a temporary failure.
+     </entry></row>
+
+   <row><entry><literal>generic-foreign-id-regex (o)</literal></entry>
+     <entry><literal>POSIX regular expression</literal></entry>
+     <entry valign="bottom">
+       Regular expression to match against HTTP
+       response body content to get the foreign message id
+       in case of successful submission.
      </entry></row>
     
+   <row><entry><literal>generic-param-username (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'username'
+       field used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-password (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'password'
+       field used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-from (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'from' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-to (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'to' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-text (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'text' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-udh (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'udh' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-service (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'service' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-account (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'account' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-binfo (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'binfo' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-dlr-mask (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'dlr-mask' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-dlr-url (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'dlr-url' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-dlr-mid (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'dlr-mid' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-flash (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'flash' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-mclass (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'mclass' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-mwi (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'mwi' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-coding (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'coding' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-validity (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'validity' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-deferred (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'deferred' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-param-foreign-id (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the default parameter for the 'foreign-id' field
+       used on incoming requests.
+     </entry></row>
+
+   <row><entry><literal>generic-message-sent (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       It allows you to set the text returned when a succesful request is made.
+       If not set, defaults to 'Sent.'. Note that you can use all sms service escapes
+       here, see <xref linkend="escapecodes" endterm="escapecodes.title"> for details.
+     </entry></row>
+
+   <row><entry><literal>generic-status-sent (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the HTTP status code returned when a successful
+       request is made. If not set, defaults to 202 (HTTP_ACCEPTED).
+     </entry></row>
+
+   <row><entry><literal>generic-status-error (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+       Overrides the HTTP status code returned when a request is
+       rejected for any reason. If not set, defaults to 202 (HTTP_ACCEPTED).
+     </entry></row>
+
    </tbody></tgroup></informaltable>
 
-   <para>For a generic HTTP-based relay, the system-type 'generic' can be used.
-   It can use the escape codes known from sms-service's get-url config
-   directives in the send-url string to indicate the HTTP API calling style of 
-   the remote HTTP server, and the 3 HTTP body response parsing regular 
-   expressions 'status-success-regex' for successfull acknowledge, 
-   'status-permfail-regex' for permanent failure and 'status-tempfail-regex' 
-   for temporary failure. An example for a 'generic' group looks like this:
-   </para>
+   <para>An example for a 'generic' group looks like this:</para>
 
 <programlisting>
 group = smsc
@@ -4096,49 +4410,50 @@ send-url = "http://www.foobar.com/mt.php?from=%P&amp;to=%p&amp;text=%b"
 status-success-regex = "ok"
 status-permfail-regex = "failure"
 status-tempfail-regex = "retry later"
+generic-foreign-id-regex = "&lt;id&gt;(.+)&lt;/id&gt;"
+generic-param-from = "phoneNumber"
+generic-param-to = "shortCode"
+generic-message-sent = "Message sent with ID: %I"
+generic-status-sent = 200
+generic-status-error = 404
 </programlisting>
-
-  <para>Beware that this generic HTTP system-type is for MT only. We don't
-  provide a way for the MO side too. For MO traffic we simply expect the
-  remote HTTP caller to use Kannel's sendsms HTTP API on the given port to 
-  inject MO messages.
-  </para> 
-  
+</sect3>
 </sect2>
 
 
 <sect2>
-<title>MT to MO direction switching</title>
-
-    <para>In case you want to route MT messages coming from 
-	 <literal>smsbox</literal> to 
-	 <literal>bearerbox</literal> back into the system again as MO messages, 
-	 you can use the HTTP SMSC to address it's own MO interface like this:
-	 </para>
+<title>Loopback SMSC (MT to MO direction switching)</title>
+ 
+   <para>This special "SMSC" type can be used to route MT messages in
+   bearerbox internally as MO input messages again. Therefore this
+   tyoe is the MT wise counterpart of the 'reroute' functionality
+   of the smsc group when MOs are re-routed as MTs.</para>
   
 <programlisting>
 group = smsc
-smsc = http
-smsc-id = MT2MO
-system-type = kannel
-smsc-username = tester
-smsc-password = foobar
-port = 14000
-send-url = "http://localhost:14000/cgi-bin/sendsms"
+smsc = loopback
+smsc-id = loop1
+reroute-smsc-id = my_id
 </programlisting>
 
-    <para>This smsc group will allow you to send MT messages to 
-	 <literal>smsc-id MT2MO</literal>, which addresses the configured HTTP SMSC 
-	 module. Now the module will use the <literal>send-url</literal> to pass the 
-	 MT messages. As you see, the send-url loops back to it's own MO interface 
-	 listening on <literal>port</literal> 14000, which will lead into an MO message 
-	 and passed to smsbox again. 
-	 </para>
+ <informaltable frame="none">
+  <tgroup cols="3"><thead><row>
+     <entry>Variable</entry>
+     <entry>Value</entry>
+     <entry>Description</entry>
+   </row></thead><tbody>
 
-	 <para>This can be used to generate cycles or allow to connect smsbox users
-	 that pass messages and make them look like they originated from an SMSC.
-	 </para>
+   <row><entry><literal>reroute-smsc-id (o)</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+        Tag the rerouted MO with the given value for smsc-id 
+        instead of the canonical smsc-id value of the smsc group 
+        itself.
+     </entry></row>
+
+   </tbody></tgroup></informaltable>
 </sect2>
+
 
 <sect2>
 <title>Using multiple SMS centers</title>
@@ -5068,6 +5383,49 @@ field-boxc-id = boxc
 
 	</sect2>
 
+    <sect2>
+    <title>MS-SQL/Sybase DLR storage</title>
+    <para>To store DLR information into a MS-SQL or Sybase (via FreeTDS)
+    database you may use the <literal>dlr-storage = mssql</literal>
+    configuration directive in the <literal>core</literal> group.
+    </para>
+    <para>In addition to that you must have a <literal>dlr-db</literal>
+    group defined that specifies the table field names that are used to the
+    DLR attributes and a <literal>mssql-connection</literal> group that
+    defines the connection to the MS-SQL or Sybase server itself.
+    </para>
+    <para>Please note that the <literal>server</literal> configuration directive
+    must match the corresponding <literal>[section]</literal> on
+    <literal>freetds.conf</literal></para>
+    <para>Here is the example configuration:
+
+<programlisting>
+group = mssql-connection
+id = msdlr
+server = myservername
+username = foo
+password = bar
+database = dlr
+max-connections = 1
+
+group = dlr-db
+id = msdlr
+table = dlr
+field-smsc = smsc
+field-timestamp = ts
+field-destination = destination
+field-source = source
+field-service = service
+field-url = url
+field-mask = mask
+field-status = status
+field-boxc-id = boxc
+</programlisting>
+
+    </para>
+
+    </sect2>
+
         <sect2>
 	<title>DLR database field configuration</title>
 	<para>For external database storage of DLR information in relational
@@ -5443,8 +5801,7 @@ ssl-certkey-file
         Defines the set of accepted destinations of SMS messages. If a 
 	destination of an SMS message is not in this set, any message 
 	received from the HTTP interface is rejected. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
      <row><entry><literal>black-list-regex</literal></entry>
@@ -5452,8 +5809,7 @@ ssl-certkey-file
         <entry valign="bottom">
         As white-list-regex, but SMS messages to numbers within in this set are
         automatically discarded.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
      <row><entry><literal>max-pending-requests</literal></entry>   
@@ -5464,6 +5820,12 @@ ssl-certkey-file
         </entry>
      </row>
 
+    <row><entry><literal>http-timeout</literal></entry>
+     <entry>seconds</entry>
+     <entry valign="bottom">
+        Sets socket timeout in seconds for outgoing client http
+        connections. Optional. Defaults to 240 seconds.
+     </entry></row>
   </tbody>
   </tgroup>
  </table>
@@ -5670,25 +6032,25 @@ get-url = "http://%S"
          number of `%s' fields in the URL. This allows you to
         configure the gateway to use different URLs for the same
         keyword depending on the number of words the SMS message
-        contains. The keyword matches in non-case sensitive manner,
-		  which means you don't have to use aliases to handle different
-		  cased versions of your keyword.
+        contains. The keyword is case insensitive, which means you don't
+        have to use aliases to handle different cased versions of your keyword.
      </entry></row>
 
    <row><entry><literal>keyword-regex</literal></entry>
      <entry>POSIX regular expression</entry>
      <entry valign="bottom">
      This field may be used to enable service-selection based on a regular expression.
-     If this field is defined for a service, then the selection will rely on the regex only, never taking
-     the literal <literal>keyword</literal> into account.
-     See section on regular expressions for details.
+     You can define either keyword or keyword-regex in configuration, but not both in
+     the same sms-service. keyword-regex is case sensitive.
+     See section on <xref linkend="regular-expressions"> for details.
    </entry></row>
 
    <row><entry><literal>aliases</literal></entry>
      <entry>word-list</entry>
      <entry valign="bottom">
         If the service has aliases, they are listed as a list with 
-        each entry separated with a semicolon (';')
+        each entry separated with a semicolon (';'). Aliases are case
+        insensitive just like keyword.
 
      </entry></row>
 
@@ -5970,8 +6332,7 @@ get-url = "http://%S"
         <footnote><para>Even if this service is denied,
 	Kannel still searches for other service which accepts the message,
 	or default service.</para></footnote>
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -5982,8 +6343,7 @@ get-url = "http://%S"
         <footnote><para>Even if this service is denied,
 	Kannel still searches for other service which accepts the message,
 	or default service.</para></footnote>
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -5995,8 +6355,7 @@ get-url = "http://%S"
 	Kannel still searches for another service which accepts the message.
 	This way there could be several services with the same keyword and
 	different results.</para></footnote>
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6005,8 +6364,7 @@ get-url = "http://%S"
         <entry valign="bottom">
         A set of phone number prefixes of sender-numbers which may
         not use this service.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6017,8 +6375,7 @@ get-url = "http://%S"
         may receive data sent by this service. This can be used to
         allow only inbound SMS to certain shortcut numbers to be allowed
 	to this service.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6027,8 +6384,7 @@ get-url = "http://%S"
         <entry valign="bottom">
         A set of phone number prefixes of receiver-numbers which may not
         receive data sent by this service.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6037,8 +6393,7 @@ get-url = "http://%S"
         <entry valign="bottom">
         Defines a set of accepted senders of SMS messages. If a 
 	sender of an SMS message is not in this list, the message is rejected.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6047,8 +6402,7 @@ get-url = "http://%S"
         <entry valign="bottom">
         As white-list-regex, but SMS messages from these numbers are
         automatically discarded.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -6061,8 +6415,8 @@ get-url = "http://%S"
 
 
 
- <table frame="none">
-  <title>Parameters (Escape Codes)</title>
+ <table frame="none" id="escapecodes">
+  <title id="escapecodes.title">Parameters (Escape Codes)</title>
   <tgroup cols="2">
   <tbody>
 
@@ -6135,6 +6489,14 @@ the SMS ID of the internal message structure
 
 <row><entry><literal>%d</literal></entry><entry>
 the delivery report value
+</entry></row>
+
+<row><entry><literal>%R</literal></entry><entry>
+the delivery report URL value
+</entry></row>
+
+<row><entry><literal>%D</literal></entry><entry>
+meta-data from the SMSC. See <xref linkend="meta-data"> for more into.
 </entry></row>
 
 <row><entry><literal>%A</literal></entry><entry>
@@ -6378,6 +6740,9 @@ text = "No action specified"
    <row><entry><literal>priority</literal></entry>
    <entry><literal>X-Kannel-Priority</literal></entry></row>
 
+   <row><entry><literal>meta-data</literal></entry>
+   <entry><literal>X-Kannel-Meta-Data</literal></entry></row>
+
   </tbody>
   </tgroup>
  </table>
@@ -6458,6 +6823,10 @@ text = "No action specified"
    <entry><literal>X-Kannel-Service</literal></entry>
    <entry></entry></row>
 
+   <row><entry><literal>%D (meta-data)</literal></entry>
+   <entry><literal>X-Kannel-Meta-Data</literal></entry>
+   <entry>Meta-Data (Only SMPP TLV's supported at the moment)</entry></row>
+
    <row><entry><literal>%a or %r (text)</literal></entry>
    <entry>request body</entry>
    <entry>Kannel send all words (%a) unless <literal>strip-keyword</literal> is true</entry></row>
@@ -6487,6 +6856,7 @@ text = "No action specified"
     &#60;oa&#62;&#60;number&#62;originating number (from)&#60;/number&#62;&#60;/oa&#62;
     &#60;ud&#62;user data (text)&#60;/ud&#62;
     &#60;udh&#62;user data header (udh)&#60;/udh&#62;
+    &#60;meta-data&#62;meta-data&#60;/meta-data&#62;
     &#60;dcs&#62;
       &#60;mclass&#62;mclass&#60;/mclass&#62;
       &#60;coding&#62;coding&#60;/coding&#62;
@@ -6714,7 +7084,7 @@ text = "No action specified"
         <entry valign="bottom">
         A set of phone numbers which are accepted to be
         sent using this username. 
-        See section on regular expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>
      </row>
 
@@ -6723,7 +7093,7 @@ text = "No action specified"
         <entry valign="bottom">
         A set of phone numbers which may not
         send using this username. 
-        See section on regular expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>
      </row>
 
@@ -6733,7 +7103,7 @@ text = "No action specified"
         Defines a set of accepted destinations of SMS messages. If a 
 	destination of an SMS message is not in this list, any message 
 	received from the HTTP interface is rejected. 
-        See section on regular expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>
      </row>
 
@@ -6742,7 +7112,7 @@ text = "No action specified"
         <entry valign="bottom">
         As <literal>white-list-regex</literal>, but SMS messages originating from 
         a number matching the pattern are discarded.
-        See section on regular expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>
      </row>
 
@@ -7215,7 +7585,7 @@ the Kannel configuration, or 'Authorization failed' is returned.
    <entry><literal>string</literal></entry>
    <entry valign="bottom">
         Charset of text message. Used to convert to a format suitable for
-	7 bits or to UCS-2. Defaults to WINDOWS-1252 if coding is 7bits and
+	7 bits or to UCS-2. Defaults to UTF-8 if coding is 7 bits and
 	UTF-16BE if coding is UCS-2.
    </entry></row>
 
@@ -7920,8 +8290,7 @@ allow-ip = 62.254.217.163
         <entry valign="bottom">
              Defines the set of phone-numbers accepting pushes from this 
              pi.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -7930,8 +8299,7 @@ allow-ip = 62.254.217.163
         <entry valign="bottom">
              Defines the set of phone-numbers rejecting pushes from this 
              pi.
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -7939,16 +8307,14 @@ allow-ip = 62.254.217.163
         <entry>POSIX regular expression</entry>
         <entry valign="bottom">
              Set of phone number prefixes allowed in pushes coming from this pi. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
      <row><entry><literal>denied-list-regex</literal></entry>
         <entry>POSIX regular expression</entry>
         <entry valign="bottom">
              Set of phone number prefixes denied in pushes coming from this pi. 
-        See section on regular 
-        expressions for details.
+        See section on <xref linkend="regular-expressions"> for details.
         </entry>   
      </row>
 
@@ -8401,6 +8767,7 @@ ssl-server-key-file = "/etc/kannel/key1.pem"
 	<listitem><para>4: message buffered</para></listitem>
 	<listitem><para>8: smsc submit</para></listitem>
 	<listitem><para>16: smsc reject</para></listitem>
+	<listitem><para>32: smsc intermediate notifications</para></listitem>
 	</itemizedlist>
 	If you want multiple report types, you simply add the values together. For example if you want to get delivery success and/or failure
 	you set the <literal>dlr-mask</literal> value to 1+2. and so on. If you specify <literal>dlr-mask</literal> on the URL you pass on to
@@ -8410,13 +8777,19 @@ ssl-server-key-file = "/etc/kannel/key1.pem"
 	<para>
 	An example transaction would work as following.
 	<itemizedlist>
-	<listitem><para>1. you send a message using dlr-mask=7 and dlr-url=http://www.xyz.com/cgi/dlr.php?type=%d</para></listitem>
+	<listitem><para>1. you send a message using dlr-mask=7 and dlr-url=http://www.xyz.com/cgi/dlr.php?myId=123456&amp;type=%d</para></listitem>
 	<listitem><para>2. Kannel forwards the message to the SMSC and keeps track of the message</para></listitem>
 	<listitem><para>3. The SMSC can not reach the phone and thus returns a buffered message</para></listitem>
-	<listitem><para>4. Kannel calls http://www.xyz.com/cgi/dlr.php?type=4 to indicate the message being buffered</para></listitem>
+	<listitem><para>4. Kannel calls http://www.xyz.com/cgi/dlr.php?myId=123456&amp;type=4 to indicate the message being buffered</para></listitem>
 	<listitem><para>5. The phone is switched on and the SMS gets delivered from the SMSC. The SMSC reports this to Kannel</para></listitem>
-	<listitem><para>6. Kannel calls http://www.xyz.com/cgi/dlr.php?type=1 to indicate the final success</para></listitem>
+	<listitem><para>6. Kannel calls http://www.xyz.com/cgi/dlr.php?myId=123456&amp;type=1 to indicate the final success</para></listitem>
 	</itemizedlist>
+	<note>
+	  <para>
+	  If you put your own message ID in the dlr-url like in the example above, you can then use this ID to update your database
+	  with the message status.
+	  </para>
+	</note>
 	Depending on the SMSC type not all type of messages are supported. For example a CIMD SMSC does
 	not support buffered messages. Also some SMSC drivers have not implemented all DLR types.
 	</para>
@@ -9136,11 +9509,11 @@ test/fakesmsc -m 1 "100 500 udh %0eudh+stuff+here main+message"
 
 </appendix>
 
-<appendix>
+<appendix id="regular-expressions" xreflabel="Regular Expressions">
     <title>Regular Expressions</title>
     <para>Note: this is not intended to be an introduction to regular expressions (short: regex) but a 
     description of their application within Kannel. For general information regarding regexes
-    please refer to <xref linkend="Biblio-regexp"/>.
+    please refer to <xref linkend="Biblio-regexp">.
     </para>
     <sect1>
         <title>Syntax and semantics of the regex configuration parameter</title>
@@ -9340,6 +9713,109 @@ test/fakesmsc -m 1 "100 500 udh %0eudh+stuff+here main+message"
     </sect1>
 </appendix> 
 
+<appendix id="meta-data" xreflabel="Meta Data">
+    <title>Meta Data</title>
+    <para>This appendix describes the elements and syntax required to access meta-data coming from and going to SMSC connections.</para>
+    <sect1>
+      <title>Overview</title>
+      <para>Many SMSC services have means to exchange data that doesn't conform to the established format</para>
+      <para>For example, the SMPP protocol defines the TLV (Tag, Length, Value) mechanism to allow adding arbitrary parameters
+      to it's PDU's, thus extending it's functionality.</para>
+      <para>To achieve this, a special group and parameters were added to abstract the meta-data into something that could be used disregarding
+      the SMSC type.</para>
+      <para>Currently only the SMPP module is implemented, but the format chosen allows for other modules to be added in the future.</para>
+    </sect1>
+    <sect1>
+      <title>SMPP Implementation</title>
+      <para>A special group type <literal>smpp-tlv</literal> is needed for each TLV. Each group defines the address, data type and length of the TLV</para>
+      <para>Example configuration:</para>
+<programlisting>
+group = smpp-tlv
+name = my_tlv_name
+tag = 0x1601
+type = octetstring
+length = 20
+smsc-id = a;b;c
+</programlisting>
+
+<informaltable frame="none">
+  <tgroup cols="3">
+    <thead><row>
+     <entry>Variable</entry>
+     <entry>Data Type</entry>
+     <entry>Description</entry>
+   </row></thead><tbody>
+
+   <row><entry><literal>tag</literal></entry>
+     <entry><literal>hex</literal></entry>
+     <entry valign="bottom">
+        32-Bit HEX address for the given TLV. Must match SMPP specifications for the TLV (or be agreed with the SMSC operator).
+     </entry></row>
+
+   <row><entry><literal>type</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+        Accepted data type. Accepted values are <literal>integer</literal>, <literal>nulterminated</literal> and <literal>octetstring</literal>.
+        Must match SMPP specifications for the TLV (or be agreed with the SMSC operator).
+     </entry></row>
+
+   <row><entry><literal>length</literal></entry>
+     <entry><literal>integer</literal></entry>
+     <entry valign="bottom">
+        Maximum data length expected in bytes. Must match SMPP specifications for the TLV (or be agreed with the SMSC operator).
+     </entry></row>
+
+   <row><entry><literal>smsc-id</literal></entry>
+     <entry><literal>string</literal></entry>
+     <entry valign="bottom">
+        An optional smsc-id for which this TLV is valid. If smsc-id is not given
+		then this TLV is valid for all SMSCs.
+		To define list of smsc-id, just use ; as split char.
+     </entry></row>
+
+	</tbody>
+  </tgroup>
+</informaltable>
+      <sect2>
+        <title>MO Messages</title>
+        <para>Meta Data coming from MO messages comes urlencoded into the <literal>%D</literal> parameter. Only TLV parameters defined on the configuration file are honored.</para>
+        <sect3>
+	        <title>Example</title>
+	        <para><literal>http://localhost/myscript?...&amp;meta-data=%D&amp;...</literal></para>
+        </sect3>
+      </sect2>
+      <sect2>
+        <title>MT Messages</title>
+        <para>To send into an MT messages the <literal>meta-data</literal> parameter should be used.</para>
+        
+        <para>The format used to pass the data has 2 parts: The <literal>?smsc-type?</literal> (surrounded by question marks),
+        which specify the kind of smsc receiving the data (at the moment only <literal>smpp</literal> is implemented) and then a set of key/value
+        pairs with the data to be transmitted. Extra smsc-types can be added surrounded by question marks and followed by the key/value pairs.</para>
+        
+        <para>In other words,  the data should be coded using the following format, where URLENCODE() implies that the data between parentheses should
+        be urlencoded:</para>
+
+        <para><literal>?URLENCODE(&lt;smsc-type1&gt;)?URLENCODE(key1)=URLENCODE(value1)&amp;URLENCODE(key2)=URLENCODE(value2)&amp;...</literal></para>
+        <para><literal>?URLENCODE(&lt;smsc-type2&gt;)?URLENCODE(key1)=URLENCODE(value1)&amp;...</literal></para>
+
+        <para>Only the parameters defined on the configuration file are honored.</para>
+
+        <para>Important: For the sendsms interface, you must URLENCODE the resulting string again to pass it as a single parameter on the URL.</para>
+
+	      <sect3>
+	        <title>Examples</title>
+	        <para>If we want to send the parameter "my-data" with value "Hello World" to an SMSC over SMPP, we'd use:</para>
+	        <para>sendsms get-url:</para>
+	        <para><literal>http://localhost:13013/cgi-bin/sendsms?...&amp;meta-data=%3Fsmpp%3Fmy-data%3DHello%2BWorld</literal></para>
+          <para>sendsms post:</para>
+          <para>Send <literal>?smpp?my-data=Hello+World</literal> on the <literal>X-Kannel-Meta-Data</literal> header</para>
+          <para>XML:</para>
+          <para><literal>&lt;meta-data&gt;?smpp?my-data=Hello+World&lt;/meta-data&gt;</literal></para>
+	      </sect3>
+      </sect2>
+    </sect1>
+</appendix>
+
 <appendix>
 <title>Log files</title>
 
@@ -9349,7 +9825,7 @@ test/fakesmsc -m 1 "100 500 udh %0eudh+stuff+here main+message"
 <title>Bearerbox Access Log</title>
 
 	<screen><computeroutput>
-	2001-01-01 12:00:00 Sent SMS [SMSC:smsc] [SVC:sms] [ACT:account] [BINFO:binfo] [FID:1234567890]
+	2001-01-01 12:00:00 Sent SMS [SMSC:smsc] [SVC:sms] [ACT:account] [BINFO:binfo] [FID:1234567890] [META:meta]
             [from:12345] [to:67890] [flags:0:1:0:0:0] [msg:11:Hello World] [udh:0]
 	</computeroutput></screen>	
 
@@ -9389,6 +9865,32 @@ test/fakesmsc -m 1 "100 500 udh %0eudh+stuff+here main+message"
 	     group <literal>sendsms-user</literal>
      </entry></row>
 
+     <row><entry>ACT</entry>
+     <entry>account</entry>
+     <entry valign="bottom">
+	     Account name (<literal>name</literal>) defined in configuration 
+	     group <literal>sendsms-user</literal>
+     </entry></row>
+
+     <row><entry>BINF</entry>
+     <entry>binfo</entry>
+     <entry valign="bottom">
+	     Billing information used to send this message.
+     </entry></row>
+
+     <row><entry>Foreign ID</entry>
+     <entry>1234567890</entry>
+     <entry valign="bottom">
+	     Foreign (SMSC-provided) Message ID (only available on MT messages)
+     </entry></row>
+
+     <row><entry>META</entry>
+     <entry>meta-data</entry>
+     <entry valign="bottom">
+	     Meta-data used to send this message.
+             See <xref linkend="meta-data"> for an explanation about meta-data.
+     </entry></row>
+
      <row><entry>from</entry>
      <entry>12345</entry>
      <entry valign="bottom">
@@ -9417,12 +9919,6 @@ test/fakesmsc -m 1 "100 500 udh %0eudh+stuff+here main+message"
      <entry>0:</entry>
      <entry valign="bottom">
 	     Size of UDH and UDH Hex dump 
-     </entry></row>
-
-     <row><entry>Foreign ID</entry>
-     <entry>1234567890</entry>
-     <entry valign="bottom">
-	     Foreign (SMSC-provided) Message ID (only available on MT messages)
      </entry></row>
 
    </tbody>

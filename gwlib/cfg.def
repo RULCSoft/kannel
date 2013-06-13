@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -126,6 +126,7 @@ SINGLE_GROUP(core,
     OCTSTR(sms-resend-retry)
     OCTSTR(sms-combine-concatenated-mo)
     OCTSTR(sms-combine-concatenated-mo-timeout)
+    OCTSTR(http-timeout)
 )
 
 
@@ -159,6 +160,7 @@ SINGLE_GROUP(wapbox,
     OCTSTR(concatenation)
     OCTSTR(max-messages)
     OCTSTR(wml-strict)
+    OCTSTR(http-timeout)
 )
 
 
@@ -280,6 +282,7 @@ SINGLE_GROUP(smsbox,
     OCTSTR(black-list-regex)
     OCTSTR(immediate-sendsms-reply)
     OCTSTR(max-pending-requests)
+    OCTSTR(http-timeout)
 )
 
 
@@ -293,6 +296,7 @@ MULTI_GROUP(smsbox-route,
 MULTI_GROUP(smsc,
     OCTSTR(smsc)
     OCTSTR(smsc-id)
+    OCTSTR(smsc-admin-id)
     OCTSTR(denied-smsc-id)
     OCTSTR(allowed-smsc-id)
     OCTSTR(preferred-smsc-id)
@@ -385,6 +389,29 @@ MULTI_GROUP(smsc,
     OCTSTR(max-sms-octets)
     OCTSTR(login-prompt)
     OCTSTR(password-prompt)
+    OCTSTR(generic-param-username)
+    OCTSTR(generic-param-password)
+    OCTSTR(generic-param-from)
+    OCTSTR(generic-param-to)
+    OCTSTR(generic-param-text)
+    OCTSTR(generic-param-udh)
+    OCTSTR(generic-param-service)
+    OCTSTR(generic-param-account)
+    OCTSTR(generic-param-binfo)
+    OCTSTR(generic-param-dlr-mask)
+    OCTSTR(generic-param-dlr-url)
+    OCTSTR(generic-param-dlr-mid)
+    OCTSTR(generic-param-flash)
+    OCTSTR(generic-param-mclass)
+    OCTSTR(generic-param-mwi)
+    OCTSTR(generic-param-coding)
+    OCTSTR(generic-param-validity)
+    OCTSTR(generic-param-deferred)
+    OCTSTR(generic-param-foreign-id)
+    OCTSTR(generic-message-sent)
+    OCTSTR(generic-status-sent)
+    OCTSTR(generic-status-error)
+    OCTSTR(generic-foreign-id-regex)
 )
 
 
@@ -505,8 +532,19 @@ MULTI_GROUP(modems,
     OCTSTR(keepalive-cmd)
     OCTSTR(broken)
     OCTSTR(message-storage)
+    OCTSTR(message-start)
     OCTSTR(enable-mms)
     OCTSTR(reset-string)
+)
+
+
+MULTI_GROUP(mssql-connection,
+    OCTSTR(id)
+    OCTSTR(username)
+    OCTSTR(password)
+    OCTSTR(server)
+    OCTSTR(database)
+    OCTSTR(max-connections)
 )
 
 
@@ -589,6 +627,16 @@ SINGLE_GROUP(radius-acct,
     OCTSTR(secret-radius)
     OCTSTR(unified-prefix)
 )
+
+
+MULTI_GROUP(smpp-tlv,
+    OCTSTR(name)
+    OCTSTR(tag)
+    OCTSTR(length)
+    OCTSTR(type)
+    OCTSTR(smsc-id)
+)
+
 
 #undef OCTSTR
 #undef SINGLE_GROUP

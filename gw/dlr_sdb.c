@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -157,6 +157,8 @@ static void dlr_sdb_add(struct dlr_entry *dlr)
     state = gw_sdb_query(octstr_get_cstr(sql), NULL, NULL);
     if (state == -1)
         error(0, "SDB: error in inserting DLR for DST <%s>", octstr_get_cstr(dlr->destination));
+    else if (!state)
+        warning(0, "SDB: No dlr inserted for DST <%s>", octstr_get_cstr(dlr->destination));
 
     octstr_destroy(sql);
     dlr_entry_destroy(dlr);
@@ -210,19 +212,22 @@ static int sdb_callback_msgs(int n, char **p, void *data)
 
 static struct dlr_entry*  dlr_sdb_get(const Octstr *smsc, const Octstr *ts, const Octstr *dst)
 {
-    Octstr *sql;
+    Octstr *sql, *like;
     int	state;
     struct dlr_entry *res = dlr_entry_create();
 
     gw_assert(res != NULL);
 
-    sql = octstr_format("SELECT %s, %s, %s, %s, %s, %s FROM %s WHERE %s='%s' AND %s='%s' %s",
-                        octstr_get_cstr(fields->field_mask), octstr_get_cstr(fields->field_serv),
-                        octstr_get_cstr(fields->field_url), octstr_get_cstr(fields->field_src),
-                        octstr_get_cstr(fields->field_dst), octstr_get_cstr(fields->field_boxc),
-                        octstr_get_cstr(fields->table),
-                        octstr_get_cstr(fields->field_smsc), octstr_get_cstr(smsc),
-                        octstr_get_cstr(fields->field_ts), octstr_get_cstr(ts), sdb_get_limit_str());
+    if (dst)
+        like = octstr_format("AND %S LIKE '%%%S'", fields->field_dst, dst);
+    else
+        like = octstr_imm("");
+
+    sql = octstr_format("SELECT %S, %S, %S, %S, %S, %S FROM %S WHERE %S='%S' "
+          "AND %S='%S' %S %s", fields->field_mask, fields->field_serv,
+          fields->field_url, fields->field_src, fields->field_dst,
+          fields->field_boxc, fields->table, fields->field_smsc, smsc,
+          fields->field_ts, ts, like, sdb_get_limit_str());
 
 #if defined(DLR_TRACE)
      debug("dlr.sdb", 0, "SDB: sql: %s", octstr_get_cstr(sql));
@@ -230,6 +235,7 @@ static struct dlr_entry*  dlr_sdb_get(const Octstr *smsc, const Octstr *ts, cons
 
     state = gw_sdb_query(octstr_get_cstr(sql), sdb_callback_add, res);
     octstr_destroy(sql);
+    octstr_destroy(like);
     if (state == -1) {
         error(0, "SDB: error in finding DLR");
         goto notfound;
@@ -250,15 +256,19 @@ notfound:
 
 static void  dlr_sdb_update(const Octstr *smsc, const Octstr *ts, const Octstr *dst, int status)
 {
-    Octstr *sql;
+    Octstr *sql, *like;
     int	state;
 
     debug("dlr.sdb", 0, "SDB: updating DLR status in database");
-    sql = octstr_format("UPDATE %s SET %s=%d WHERE %s='%s' AND %s='%s' %s",
-                        octstr_get_cstr(fields->table),
-                        octstr_get_cstr(fields->field_status), status,
-                        octstr_get_cstr(fields->field_smsc), octstr_get_cstr(smsc),
-                        octstr_get_cstr(fields->field_ts), octstr_get_cstr(ts), sdb_get_limit_str());
+
+    if (dst)
+        like = octstr_format("AND %S LIKE '%%%S'", fields->field_dst, dst);
+    else
+        like = octstr_imm("");
+
+    sql = octstr_format("UPDATE %S SET %S=%d WHERE %S='%S' AND %S='%S' %S %s",
+          fields->table, fields->field_status, status, fields->field_smsc,
+          smsc, fields->field_ts, ts, like, sdb_get_limit_str());
 
 #if defined(DLR_TRACE)
      debug("dlr.sdb", 0, "SDB: sql: %s", octstr_get_cstr(sql));
@@ -266,14 +276,16 @@ static void  dlr_sdb_update(const Octstr *smsc, const Octstr *ts, const Octstr *
 
     state = gw_sdb_query(octstr_get_cstr(sql), NULL, NULL);
     octstr_destroy(sql);
-    if (state == -1) {
+    octstr_destroy(like);
+    if (state == -1)
         error(0, "SDB: error in updating DLR");
-    }
+    else if (!state)
+        warning(0, "SDB: No dlr to update for DST<%s> (status %d)", octstr_get_cstr(dst), status);
 }
 
 static void  dlr_sdb_remove(const Octstr *smsc, const Octstr *ts, const Octstr *dst)
 {
-    Octstr *sql;
+    Octstr *sql, *like;
     int	state;
 
     debug("dlr.sdb", 0, "removing DLR from database");
@@ -285,17 +297,24 @@ static void  dlr_sdb_remove(const Octstr *smsc, const Octstr *ts, const Octstr *
          * to do vacuum regularly, even if it's virtually impossible
          * to hit duplicates since oid's are given in a row
          */
-        sql = octstr_format("DELETE FROM %s WHERE oid = \
-                            (SELECT oid FROM %s WHERE %s='%s' AND %s='%s' LIMIT 1)",
-                            octstr_get_cstr(fields->table),
-                            octstr_get_cstr(fields->table),
-                            octstr_get_cstr(fields->field_smsc), octstr_get_cstr(smsc),
-                            octstr_get_cstr(fields->field_ts), octstr_get_cstr(ts));
+       if (dst)
+           like = octstr_format("AND %S LIKE '%%%S')",
+                fields->field_dst, dst);
+       else
+           like = octstr_imm("LIMIT 1)");
+       sql = octstr_format("DELETE FROM %S WHERE oid = (SELECT oid FROM %S "
+             "WHERE %S='%S' AND %S='%S' %S LIMIT 1", fields->table,
+             fields->table, fields->field_smsc, smsc, fields->field_ts, ts,
+             like);
     } else {
-        sql = octstr_format("DELETE FROM %s WHERE %s='%s' AND %s='%s' %s",
-                            octstr_get_cstr(fields->table),
-                            octstr_get_cstr(fields->field_smsc), octstr_get_cstr(smsc),
-                            octstr_get_cstr(fields->field_ts), octstr_get_cstr(ts), sdb_get_limit_str());
+       if (dst)
+           like = octstr_format("AND %S LIKE '%%%S'", fields->field_dst, dst);
+       else
+           like = octstr_imm("");
+
+       sql = octstr_format("DELETE FROM %S WHERE %S='%S' AND %S='%S' %S %s",
+             fields->table, fields->field_smsc, smsc, fields->field_ts, ts,
+             like, sdb_get_limit_str());
     }
 
 #if defined(DLR_TRACE)
@@ -304,8 +323,11 @@ static void  dlr_sdb_remove(const Octstr *smsc, const Octstr *ts, const Octstr *
 
     state = gw_sdb_query(octstr_get_cstr(sql), NULL, NULL);
     octstr_destroy(sql);
+    octstr_destroy(like);
     if (state == -1)
         error(0, "SDB: error in deleting DLR");
+    else if (!state)
+        warning(0, "SDB: No dlr deleted for DST<%s>", octstr_get_cstr(dst));
 }
 
 static long dlr_sdb_messages(void)

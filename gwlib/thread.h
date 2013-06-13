@@ -1,7 +1,7 @@
 /* ==================================================================== 
  * The Kannel Software License, Version 1.0 
  * 
- * Copyright (c) 2001-2009 Kannel Group  
+ * Copyright (c) 2001-2010 Kannel Group  
  * Copyright (c) 1998-2001 WapIT Ltd.   
  * All rights reserved. 
  * 
@@ -90,7 +90,7 @@ typedef struct {
  * Create a Mutex.
  */
 #ifdef MUTEX_STATS
-#define mutex_create() gw_claim_area(mutex_make_measured(mutex_create_real(), \
+#define mutex_create() gw_claim_area(mutex_create_measured(mutex_create_real(), \
     	    	    	    	    	                 __FILE__, __LINE__))
 #else
 #define mutex_create() gw_claim_area(mutex_create_real())
@@ -99,8 +99,7 @@ typedef struct {
 /*
  * Create a Mutex.  Call these functions via the macro defined above.
  */
-Mutex *mutex_create_measured(Mutex *mutex, unsigned char *filename, 
-    	    	    	     int lineno);
+Mutex *mutex_create_measured(Mutex *mutex, char *filename, int lineno);
 Mutex *mutex_create_real(void);
 
 
@@ -111,7 +110,7 @@ Mutex *mutex_create_real(void);
  */
 #ifdef MUTEX_STATS
 #define mutex_init_static(mutex) \
-    mutex_make_measured(mutex_init_static_real(mutex), __FILE__, __LINE__)
+    mutex_create_measured(mutex_init_static_real(mutex), __FILE__, __LINE__)
 #else
 #define mutex_init_static(mutex) \
     mutex_init_static_real(mutex)
